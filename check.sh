@@ -1,0 +1,60 @@
+#!/bin/sh
+# Regenerate (./generate.sh) and fail if that changed a committed file, run the
+# grammar's tests, compile every query, say whether zed/extension.toml names the
+# commit grammar/ was last changed in, and parse every .goose file under the
+# directories given (an unpacked Goose release, a project written in Goose).
+#
+#   ./check.sh ~/goose-v2026.4-macos-arm64 ~/src/my-goose-project
+set -e
+for dir in "$@"; do
+    [ -d "$dir" ] || { echo "not a directory: $dir" >&2; exit 2; }
+done
+here=$(cd "$(dirname "$0")" && pwd)
+# The CLI compiles the parser to test it, and on macOS needs Xcode's SDK.
+if [ "$(uname)" = Darwin ]; then
+    export SDKROOT="${SDKROOT:-$(xcrun --sdk macosx --show-sdk-path)}"
+fi
+
+# The directories given are taken from where the script was run, so resolve
+# them before moving.
+for dir in "$@"; do
+    shift
+    set -- "$@" "$(cd "$dir" && pwd)"
+done
+cd "$here"
+
+./generate.sh
+if ! git diff --quiet -- grammar/src zed/languages/goose/highlights.scm; then
+    git diff --stat -- grammar/src zed/languages/goose/highlights.scm
+    echo "the generated files above were out of date: commit them as regenerated" >&2
+    exit 1
+fi
+
+cd grammar
+ts=node_modules/.bin/tree-sitter
+$ts test
+
+# A query that names a node the grammar does not have stops compiling, and Zed
+# then drops the whole file without a word.
+sample=$(mktemp -t goose-sample)
+printf 'fn main() { print("hello"); }\n' > "$sample"
+for query in queries/*.scm ../zed/languages/goose/*.scm; do
+    $ts query "$query" "$sample" > /dev/null
+done
+rm -f "$sample"
+echo "all queries compile"
+
+if [ $# -gt 0 ]; then
+    find -L "$@" -name '*.goose' -print0 | xargs -0 $ts parse --quiet --stat
+else
+    echo "no directories given: parsed no Goose sources beyond the tests"
+fi
+
+cd "$here"
+rev=$(sed -n 's/^rev = "\(.*\)"/\1/p' zed/extension.toml)
+last=$(git log -1 --format=%H -- grammar 2>/dev/null || true)
+if [ -n "$(git status --porcelain -- grammar)" ]; then
+    echo "note: grammar/ has changes that are not committed; Zed builds the grammar at $rev"
+elif [ "$rev" != "$last" ]; then
+    echo "note: zed/extension.toml names $rev, but grammar/ last changed in $last: run ./pin.sh"
+fi

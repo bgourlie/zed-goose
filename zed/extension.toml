@@ -1,0 +1,20 @@
+id = "goose-language"
+name = "Goose"
+version = "0.1.0"
+schema_version = 1
+authors = ["W. Brian Gourlie"]
+description = "Goose: highlighting from Goose's tree-sitter grammar, and the compiler's language server."
+repository = "https://github.com/bgourlie/zed-goose"
+
+# Zed fetches the grammar with git at this commit and compiles grammar/src/:
+# Goose's grammar, vendored here with its parser generated (see README.md).
+# ./pin.sh sets rev to the commit that last changed grammar/.
+[grammars.goose]
+repository = "https://github.com/bgourlie/zed-goose"
+rev = "0000000000000000000000000000000000000000"
+path = "grammar"
+
+# `goose lsp`. Its settings are `lsp.goose` in Zed's settings.
+[language_servers.goose]
+name = "Goose"
+languages = ["Goose"]

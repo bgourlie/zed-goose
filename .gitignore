@@ -1,0 +1,10 @@
+# The tree-sitter CLI, installed by generate.sh
+/grammar/node_modules/
+/grammar/package-lock.json
+
+# What Zed and cargo build in the extension's folder
+/zed/target/
+/zed/extension.wasm
+/zed/grammars/
+
+.DS_Store

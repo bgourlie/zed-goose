@@ -11,7 +11,7 @@ repository = "https://github.com/bgourlie/zed-goose"
 # ./pin.sh sets rev to the commit that last changed grammar/.
 [grammars.goose]
 repository = "https://github.com/bgourlie/zed-goose"
-rev = "0000000000000000000000000000000000000000"
+rev = "e64467216c91f08e0b314b69d9efd428e1d1c4c0"
 path = "grammar"
 
 # `goose lsp`. Its settings are `lsp.goose` in Zed's settings.

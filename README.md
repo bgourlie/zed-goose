@@ -71,15 +71,17 @@ git add -A && git commit -m "Goose's grammar at $(cut -c1-10 UPSTREAM)"
 git commit -am "Build the grammar at its new commit" && git push
 ```
 
-- `sync.sh` copies Goose's `tree-sitter/` at a ref into `grammar/` and writes the commit to
-  `UPSTREAM`, then runs `generate.sh`.
+- `sync.sh` copies Goose's `tree-sitter/` at a ref (a branch, a tag or a full commit hash:
+  git cannot fetch an abbreviated one) into `grammar/` and writes the commit to `UPSTREAM`,
+  then runs `generate.sh`.
 - `generate.sh` generates the parser in `grammar/src/` with the tree-sitter CLI that Goose's
   `package.json` pins, and remakes `zed/languages/goose/highlights.scm`. Run it after editing
   `zed/highlights-zed.scm`.
-- `check.sh` runs `generate.sh` and fails if that changed a committed file. It then runs
-  Goose's corpus, compiles every query (Zed drops a query file that names a node the grammar
-  does not have, without a word), and parses every `.goose` file under the folders given. A
-  sync that renames a node shows up here as a query that no longer compiles.
+- `check.sh` runs `generate.sh`, then Goose's corpus, compiles every query (Zed drops a
+  query file that names a node the grammar does not have, without a word), and parses every
+  `.goose` file under the folders given. A sync that renames a node shows up here as a query
+  that no longer compiles. It fails, too, if `generate.sh` changed what was on disk: the
+  generated files had fallen behind `grammar/` or `zed/highlights-zed.scm`.
 - `pin.sh` sets `rev` in `zed/extension.toml` to the commit that last changed `grammar/`. A
   commit cannot name itself, so a new grammar takes two commits: the grammar, then the `rev`
   that points at it. Zed fetches from GitHub, so both must be pushed before Zed sees them; to

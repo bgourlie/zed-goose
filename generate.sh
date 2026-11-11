@@ -7,8 +7,13 @@
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 
+# Install the CLI unless the version installed is the one package.json pins.
 cd "$here/grammar"
-[ -x node_modules/.bin/tree-sitter ] || npm install --no-audit --no-fund --silent
+want=$(node -p "require('./package.json').devDependencies['tree-sitter-cli']")
+have=$(node -p "try { require('./node_modules/tree-sitter-cli/package.json').version } catch { '' }")
+if [ "$have" != "$want" ]; then
+    npm install --no-audit --no-fund --silent
+fi
 node_modules/.bin/tree-sitter generate
 
 cd "$here"

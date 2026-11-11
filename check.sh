@@ -1,8 +1,10 @@
 #!/bin/sh
-# Regenerate (./generate.sh) and fail if that changed a committed file, run the
-# grammar's tests, compile every query, say whether zed/extension.toml names the
-# commit grammar/ was last changed in, and parse every .goose file under the
-# directories given (an unpacked Goose release, a project written in Goose).
+# Regenerate (./generate.sh), run the grammar's tests, compile every query,
+# parse every .goose file under the directories given (an unpacked Goose
+# release, a project written in Goose), and say whether zed/extension.toml
+# names the commit grammar/ was last changed in. Fails if the generated files
+# were out of date with their sources, after regenerating them and running the
+# rest against the regenerated ones.
 #
 #   ./check.sh ~/goose-v2026.4-macos-arm64 ~/src/my-goose-project
 set -e
@@ -23,12 +25,19 @@ for dir in "$@"; do
 done
 cd "$here"
 
+# Compare what generate.sh makes with what was there before it ran, not with
+# what is committed: after ./sync.sh the generated files differ from the last
+# commit, as they should.
+before=$(mktemp -d)
+cp -R grammar/src "$before/src"
+cp zed/languages/goose/highlights.scm "$before/highlights.scm"
 ./generate.sh
-if ! git diff --quiet -- grammar/src zed/languages/goose/highlights.scm; then
-    git diff --stat -- grammar/src zed/languages/goose/highlights.scm
-    echo "the generated files above were out of date: commit them as regenerated" >&2
-    exit 1
+stale=
+if ! diff -r -q "$before/src" grammar/src || ! cmp -s "$before/highlights.scm" zed/languages/goose/highlights.scm; then
+    stale=yes
+    echo "note: the generated files were out of date with grammar/ and zed/highlights-zed.scm: regenerated"
 fi
+rm -rf "$before"
 
 cd grammar
 ts=node_modules/.bin/tree-sitter
@@ -57,4 +66,8 @@ if [ -n "$(git status --porcelain -- grammar)" ]; then
     echo "note: grammar/ has changes that are not committed; Zed builds the grammar at $rev"
 elif [ "$rev" != "$last" ]; then
     echo "note: zed/extension.toml names $rev, but grammar/ last changed in $last: run ./pin.sh"
+fi
+if [ -n "$stale" ]; then
+    echo "the generated files were out of date and have been regenerated: commit them" >&2
+    exit 1
 fi

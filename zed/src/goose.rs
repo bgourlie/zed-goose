@@ -1,9 +1,11 @@
 //! Goose for Zed: starts the compiler's language server, `goose lsp`.
 //!
-//! The server needs no download: it is the compiler. It is found where the
-//! settings say (`lsp.goose.binary.path`), else on the PATH. A relative path in
-//! the settings is taken from the project's root, so a `.zed/settings.json`
-//! checked into a project can name a compiler unpacked inside it.
+//! The server needs no download: it is the compiler, here `goose` on the PATH.
+//! A project whose compiler is elsewhere names it in `lsp.goose.binary.path`,
+//! with `"arguments": ["lsp"]`: Zed then runs that binary itself, with only the
+//! arguments the settings give, and does not ask the extension for a command.
+//! Zed also adds the shell's environment, `binary.env` and any
+//! `binary.arguments` to the command returned here.
 //!
 //! The server checks a module as part of the programs that import it when the
 //! client names their root files (`entryFiles` in its initialization options),
@@ -40,36 +42,19 @@ impl zed::Extension for GooseExtension {
 
     fn language_server_command(
         &mut self,
-        id: &LanguageServerId,
+        _id: &LanguageServerId,
         worktree: &Worktree,
     ) -> Result<zed::Command> {
-        let binary = LspSettings::for_worktree(id.as_ref(), worktree)
-            .ok()
-            .and_then(|settings| settings.binary);
-        let configured = binary.as_ref().and_then(|b| b.path.clone());
-        let command = match configured {
-            Some(path) => from_root(&worktree.root_path(), &path),
-            None => worktree.which("goose").ok_or_else(|| {
-                "goose is not on the PATH: set lsp.goose.binary.path in Zed's settings \
-                 to the goose compiler"
-                    .to_string()
-            })?,
-        };
-        let args = binary
-            .as_ref()
-            .and_then(|b| b.arguments.clone())
-            .unwrap_or_else(|| vec!["lsp".to_string()]);
-
-        // The shell's environment, so that GOOSE_HOME and the like are as in a
-        // terminal, with the settings' own variables over it.
-        let mut env = worktree.shell_env();
-        if let Some(extra) = binary.and_then(|b| b.env) {
-            for (name, value) in extra {
-                env.retain(|(existing, _)| *existing != name);
-                env.push((name, value));
-            }
-        }
-        Ok(zed::Command { command, args, env })
+        let command = worktree.which("goose").ok_or_else(|| {
+            "goose is not on the PATH: in Zed's settings, set lsp.goose.binary.path \
+             to the goose compiler and lsp.goose.binary.arguments to [\"lsp\"]"
+                .to_string()
+        })?;
+        Ok(zed::Command {
+            command,
+            args: vec!["lsp".to_string()],
+            env: Vec::new(),
+        })
     }
 
     fn language_server_initialization_options(

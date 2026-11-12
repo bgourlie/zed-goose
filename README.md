@@ -33,14 +33,18 @@ extension in the Extensions page. Its log is under **zed: open log**.
 
 ## Settings
 
-The extension starts the compiler named by `lsp.goose.binary.path`, or `goose` on the PATH.
-A project's `.zed/settings.json` might say:
+The language server is the compiler, run as `goose lsp`, and its name in Zed's settings is
+`goose`. The extension runs `goose lsp` from the PATH; a project whose compiler is elsewhere
+names it. A project's `.zed/settings.json` might say:
 
 ```json
 {
   "lsp": {
     "goose": {
-      "binary": { "path": "goose-dist/goose-v2026.4-macos-arm64/goose" },
+      "binary": {
+        "path": "goose-dist/goose-v2026.4-macos-arm64/goose",
+        "arguments": ["lsp"]
+      },
       "settings": { "entryFiles": ["src/main.goose"] }
     }
   },
@@ -48,8 +52,11 @@ A project's `.zed/settings.json` might say:
 }
 ```
 
-- `binary.path` may be relative: it is taken from the project's root. `binary.arguments`
-  replaces `["lsp"]`, and `binary.env` adds to the shell's environment.
+- `binary.path` may be relative: it is taken from the project's root. Zed runs that binary
+  itself, with only `binary.arguments`, so `["lsp"]` has to be given there too: without it
+  the compiler prints its usage and exits. `binary.env` adds to the shell's environment.
+- A `languages.Goose.language_servers` list in your own settings that leaves out `goose`
+  keeps the server from starting at all.
 - `settings.entryFiles` names the programs' root files, relative to the project's root. The
   server then checks a module as part of the programs that import it, and shows their errors
   in it; without them, each open file is checked as a program of its own. The server wants
